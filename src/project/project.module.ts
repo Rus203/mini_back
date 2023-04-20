@@ -3,9 +3,12 @@ import { CronModule } from 'src/cron/cron.module';
 
 import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Project } from './entities';
+import { GitModule } from 'src/git/git.module';
 
 @Module({
-  imports: [CronModule],
+  imports: [CronModule, TypeOrmModule.forFeature([Project]), GitModule],
   controllers: [ProjectController],
   providers: [ProjectService]
 })

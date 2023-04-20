@@ -11,7 +11,6 @@ export interface IGitCloneParams {
   uploadPath: string;
   sshGitPrivateKeyPath: string;
   sshGitPublicKeyPath: string;
-  sshServerKey: string;
 }
 
 @Injectable()
@@ -64,8 +63,7 @@ export class GitProvider extends ChildProcessCommandProvider {
     gitLink,
     uploadPath,
     sshGitPrivateKeyPath,
-    sshGitPublicKeyPath,
-    sshServerKey
+    sshGitPublicKeyPath
   }: IGitCloneParams) {
     return new Promise((resolve, reject) => {
       access(uploadPath, (err) => {
@@ -81,13 +79,10 @@ export class GitProvider extends ChildProcessCommandProvider {
             const urlPublicPath = url
               .pathToFileURL(sshGitPublicKeyPath)
               .pathname.replace(/^\//, '');
-            const urlServerKeyPath = url
-              .pathToFileURL(sshServerKey)
-              .pathname.replace(/^\//, '');
             cleanDir(uploadPath).then(() => {
               const OS = os.platform();
-              const windowsCommand = `cd ${uploadPath} && chmod 600 ${urlPath} ${urlPublicPath} ${urlServerKeyPath} && git clone ${gitLink} ./ --config core.sshCommand="ssh -i ${urlPath}"`;
-              const linuxCommand = `cd ${uploadPath} && chmod 600 /${urlPath} /${urlPublicPath} /${urlServerKeyPath} && git clone ${gitLink} ./ --config core.sshCommand="ssh -i /${urlPath}"`;
+              const windowsCommand = `cd ${uploadPath} && chmod 600 ${urlPath} ${urlPublicPath} && git clone ${gitLink} ./ --config core.sshCommand="ssh -i ${urlPath}"`;
+              const linuxCommand = `cd ${uploadPath} && chmod 600 /${urlPath} /${urlPublicPath} && git clone ${gitLink} ./ --config core.sshCommand="ssh -i /${urlPath}"`;
               const command = OS === 'win32' ? windowsCommand : linuxCommand;
 
               const childProcess = spawn(command, { shell: true });
