@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  isWorking(): string {
+  isWorking() {
     return { status: true };
   }
 }
