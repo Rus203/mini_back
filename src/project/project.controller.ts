@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Param,
   Post,
   UploadedFiles,
   UseInterceptors
@@ -48,13 +49,13 @@ export class ProjectController {
     });
   }
 
-  @Post('/run-docker')
-  async runDocker() {
-    return await this.projectService.runDocker();
+  @Post(':name/run')
+  async runDocker(@Param('name') name: string) {
+    return await this.projectService.run(name);
   }
 
-  @Post('/stop-docker')
-  async stopDocker() {
-    return await this.projectService.stopDocker();
+  @Post(':name/stop')
+  async stopDocker(@Param('name') name: string) {
+    return await this.projectService.stop(name);
   }
 }
