@@ -16,7 +16,6 @@ import { CronService } from 'src/cron';
 
 interface IProjectFilesInfo {
   envFilePath: string;
-  gitPublicKeyPath: string;
   gitPrivateKeyPath: string;
 }
 
@@ -36,7 +35,7 @@ export class ProjectService {
 
   async create(createProjectDto: CreateProjectDto, files: IProjectFilesInfo) {
     try {
-      const { envFilePath, gitPrivateKeyPath, gitPublicKeyPath } = files;
+      const { envFilePath, gitPrivateKeyPath } = files;
 
       const { name, gitLink } = createProjectDto;
       const srcPath = path.join(__dirname, '..');
@@ -52,12 +51,13 @@ export class ProjectService {
       await this.gitProvider.clone({
         gitLink,
         uploadPath,
-        sshGitPrivateKeyPath: gitPrivateKeyPath,
-        sshGitPublicKeyPath: gitPublicKeyPath
+        sshGitPrivateKeyPath: gitPrivateKeyPath
       });
 
       await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
       await cleanDir(path.join(srcPath, 'tmp'));
+
+      await this.run(result);
 
       return result;
     } catch (err) {
@@ -65,13 +65,25 @@ export class ProjectService {
     }
   }
 
-  async run(name: string) {
+  async run(project: string | Project): Promise<void> {
     try {
-      const project = await this.projectRepository.findOneBy({ name });
-      if (project) {
-        const result = await this.dockerProvider.runDocker(project.uploadPath);
+      let persistedProject: Project;
 
-        if (result) this.cronService.addCheckProjectHealthTask(project);
+      if (typeof project === 'string') {
+        persistedProject = await this.projectRepository.findOneBy({
+          name: project
+        });
+      } else {
+        persistedProject = project;
+      }
+
+      if (persistedProject) {
+        const result = await this.dockerProvider.runDocker(
+          persistedProject.uploadPath
+        );
+
+        if (result)
+          this.cronService.addCheckProjectHealthTask(persistedProject);
       }
 
       throw new HttpException({ message: 'Project not found' }, 404);
@@ -79,9 +91,12 @@ export class ProjectService {
       handleServiceErrors(err);
     }
   }
-  async stop(name: string) {
+
+  async stop(projectName: string) {
     try {
-      const project = await this.projectRepository.findOneBy({ name });
+      const project = await this.projectRepository.findOneBy({
+        name: projectName
+      });
       if (project) {
         const result = await this.dockerProvider.stopDocker(project.uploadPath);
 

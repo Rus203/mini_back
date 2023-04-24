@@ -34,18 +34,15 @@ export class ProjectController {
     @UploadedFiles()
     {
       envFile,
-      sshGitPrivateKey,
-      sshGitPublicKey
+      sshGitPrivateKey
     }: {
       envFile?: Express.Multer.File[];
       sshGitPrivateKey?: Express.Multer.File[];
-      sshGitPublicKey?: Express.Multer.File[];
     }
   ) {
     return await this.projectService.create(createProjectDto, {
       envFilePath: envFile[0].path,
-      gitPrivateKeyPath: sshGitPrivateKey[0].path,
-      gitPublicKeyPath: sshGitPublicKey[0].path
+      gitPrivateKeyPath: sshGitPrivateKey[0].path
     });
   }
 

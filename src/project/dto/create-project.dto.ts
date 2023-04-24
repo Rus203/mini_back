@@ -2,6 +2,7 @@ import { Project } from '../entities/project.entity';
 import {
   IsEmail,
   IsNumber,
+  IsNumberString,
   IsString,
   MaxLength,
   MinLength
@@ -19,6 +20,6 @@ export class CreateProjectDto implements Partial<Project> {
   @IsString()
   gitLink: string;
 
-  @IsNumber()
+  @IsNumberString()
   port: string;
 }
