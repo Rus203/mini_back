@@ -1,0 +1,31 @@
+version: '3.1'
+
+services:
+  mini_back-service:
+    env_file:
+      - ./.env
+    environment:
+      - POSTGRES_HOST=mini_back-postgres
+    build: ./
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - ${SERVER_PORT}:${SERVER_PORT}
+    networks:
+      - mini_back
+    depends_on:
+      - mini_back-postgres
+    restart: always
+
+  mini_back-postgres:
+    image: postgres
+    env_file:
+      - ./.env
+    restart: always
+    networks:
+      - mini_back
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+
+networks:
+  mini_back:
