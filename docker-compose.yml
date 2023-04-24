@@ -7,6 +7,7 @@ services:
     environment:
       - POSTGRES_HOST=mini_back-postgres
     build: ./
+    privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -24,8 +25,6 @@ services:
     restart: always
     networks:
       - mini_back
-    ports:
-      - ${POSTGRES_PORT}:${POSTGRES_PORT}
 
 networks:
   mini_back:

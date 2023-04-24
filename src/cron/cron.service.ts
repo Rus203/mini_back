@@ -5,6 +5,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { ProjectMailer } from 'src/mailers';
 import { Project } from 'src/project/entities';
 import { CronJob } from 'cron';
+import { handleServiceErrors } from 'src/utils';
 
 enum MinibackCronJob {
   HealthCheckProjects = 'healthCheckProjects'
@@ -32,15 +33,20 @@ export class CronService {
 
   public addCheckProjectHealthTask({ port, email, name }: Project) {
     const jobName = this.formJobName(MinibackCronJob.HealthCheckProjects, name);
-    const currentJob = this.schedulerRegistry.getCronJob(jobName);
-    if (currentJob) {
+
+    try {
+      const currentJob = this.schedulerRegistry.getCronJob(jobName);
       currentJob.start();
-    } else {
-      const job = new CronJob(CronExpression.EVERY_5_MINUTES, () =>
-        this.checkServerPort(Number(port), { email, projectName: name })
-      );
-      this.schedulerRegistry.addCronJob(jobName, job);
-      job.start();
+    } catch (err) {
+      if (err.message && err.message.includes('No Cron Job was found')) {
+        const job = new CronJob(CronExpression.EVERY_5_MINUTES, () =>
+          this.checkServerPort(Number(port), { email, projectName: name })
+        );
+        this.schedulerRegistry.addCronJob(jobName, job);
+        job.start();
+      } else {
+        handleServiceErrors(err);
+      }
     }
   }
 

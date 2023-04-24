@@ -7,35 +7,27 @@ import { ChildProcessCommandProvider } from 'src/utils';
 
 @Injectable()
 export class DockerProvider extends ChildProcessCommandProvider {
-  runDocker(projectDirectory: string) {
+  public runDocker(projectDirectory: string) {
     return new Promise((resolve, reject) => {
-      // Checking if the docker-compose.yml file exists
-      this.checkDockerCompose(projectDirectory);
+      this.checkDockerComposeFile(projectDirectory);
 
-      // Checking if Docker Compose exists on a local machine
-      spawn('sudo docker-compose', ['version'], {
-        shell: true,
-        stdio: 'inherit'
-      }).on('exit', (code) => {
-        if (code !== 0) {
-          reject('Docker compose is not installed');
-        }
+      this.checkDockerComposeInstallation().then(() => {
+        const dockerComposeProcess = spawn(
+          'sudo docker-compose up --build -d',
+          {
+            cwd: projectDirectory,
+            shell: true
+          }
+        );
+
+        this.handleProcessErrors(dockerComposeProcess, resolve, reject);
       });
-
-      // if images and containers don't exist, create images and their containers
-      const dockerComposeProcess = spawn('sudo docker-compose --build up -d', {
-        cwd: projectDirectory,
-        shell: true
-      });
-
-      this.handleProcessErrors(dockerComposeProcess, resolve, reject);
     });
   }
 
-  stopDocker(projectDirectory: string) {
+  public stopDocker(projectDirectory: string) {
     return new Promise((resolve, reject) => {
-      // Checking if the docker-compose.yml file exists
-      this.checkDockerCompose(projectDirectory);
+      this.checkDockerComposeFile(projectDirectory);
 
       const dockerComposeProcess = spawn('sudo docker-compose down --rmi all', {
         cwd: projectDirectory,
@@ -46,7 +38,7 @@ export class DockerProvider extends ChildProcessCommandProvider {
     });
   }
 
-  checkDockerCompose(projectDirectory: string) {
+  private checkDockerComposeFile(projectDirectory: string): void {
     const exists = fs.existsSync(
       path.join(projectDirectory, 'docker-compose.yml')
     );
@@ -55,5 +47,19 @@ export class DockerProvider extends ChildProcessCommandProvider {
         'docker-compose.yml file not found'
       );
     }
+  }
+
+  private checkDockerComposeInstallation(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      spawn('sudo docker-compose', ['version'], {
+        shell: true
+      }).on('exit', (code) => {
+        if (code !== 0) {
+          reject('Docker compose is not installed');
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 }

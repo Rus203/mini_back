@@ -1,6 +1,4 @@
 import fs, { access } from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { Injectable } from '@nestjs/common';
 import { ChildProcessCommandProvider } from '../utils';
@@ -26,7 +24,7 @@ export class GitProvider extends ChildProcessCommandProvider {
             `&& cd ${uploadPath}`,
             `&& chmod 600 ${sshGitPrivateKeyPath}`,
             `&& ssh-add ${sshGitPrivateKeyPath}`,
-            `&& git clone ${gitLink} ./`
+            `&& git clone ${gitLink} ./ --config core.sshCommand="ssh -o 'StrictHostKeyChecking=no'"`
           ],
           {
             shell: true

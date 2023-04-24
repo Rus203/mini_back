@@ -84,6 +84,7 @@ export class ProjectService {
 
         if (result)
           this.cronService.addCheckProjectHealthTask(persistedProject);
+        return;
       }
 
       throw new HttpException({ message: 'Project not found' }, 404);
