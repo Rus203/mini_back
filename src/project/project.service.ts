@@ -65,7 +65,7 @@ export class ProjectService {
     }
   }
 
-  async run(project: string | Project): Promise<void> {
+  async run(project: string | Project): Promise<boolean> {
     try {
       let persistedProject: Project;
 
@@ -84,7 +84,7 @@ export class ProjectService {
 
         if (result)
           this.cronService.addCheckProjectHealthTask(persistedProject);
-        return;
+        return true;
       }
 
       throw new HttpException({ message: 'Project not found' }, 404);
@@ -93,7 +93,7 @@ export class ProjectService {
     }
   }
 
-  async stop(projectName: string) {
+  async stop(projectName: string): Promise<boolean> {
     try {
       const project = await this.projectRepository.findOneBy({
         name: projectName
@@ -102,6 +102,8 @@ export class ProjectService {
         const result = await this.dockerProvider.stopDocker(project.uploadPath);
 
         if (result) this.cronService.stopCheckProjectHealthTask(project);
+
+        return true;
       }
 
       throw new HttpException({ message: 'Project not found' }, 404);
