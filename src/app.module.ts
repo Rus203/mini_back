@@ -7,6 +7,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CronModule } from './cron/cron.module';
 import { ServerModule } from './server/server.module';
 import { MailersModule } from './mailers';
+import { DatabaseModule } from './database/database.module';
+import { DockerModule } from './docker/docker.module';
 
 @Module({
   imports: [
@@ -15,7 +17,9 @@ import { MailersModule } from './mailers';
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     ServerModule,
-    MailersModule
+    MailersModule,
+    DatabaseModule,
+    DockerModule
   ],
   controllers: [AppController],
   providers: [AppService]

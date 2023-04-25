@@ -10,7 +10,7 @@ export class ChildProcessCommandProvider {
     childProcess: ChildProcess,
     resolve: (value: boolean | PromiseLike<boolean>) => void,
     reject: (reason: any) => void,
-    options: HandleProcessErrorsOption = { ignoreErrors: false },
+    options: HandleProcessErrorsOption = { ignoreErrors: false }
   ) => {
     let errorFromStderr: string;
 

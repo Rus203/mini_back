@@ -1,93 +1,114 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import fsPromise from 'fs/promises';
+import path from 'path';
 
-import { spawn } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import { CronService } from '../cron/cron.service';
+import { HttpException, Injectable } from '@nestjs/common';
+
+import { InjectRepository } from '@nestjs/typeorm';
+
+import { Repository } from 'typeorm';
+
+import { Project } from './entities';
+import { cleanDir, handleServiceErrors } from 'src/utils';
+import { CreateProjectDto } from './dto';
+import { GitProvider } from 'src/git';
+import { DockerProvider } from 'src/docker';
+import { CronService } from 'src/cron';
+
+interface IProjectFilesInfo {
+  envFilePath: string;
+  gitPrivateKeyPath: string;
+}
 
 @Injectable()
 export class ProjectService {
-  composeFilePath = './project/docker-compose.yml';
-  filePath = path.resolve(this.composeFilePath);
-  constructor(private readonly cronService: CronService) {}
+  constructor(
+    @InjectRepository(Project)
+    private readonly projectRepository: Repository<Project>,
+    private readonly gitProvider: GitProvider,
+    private readonly dockerProvider: DockerProvider,
+    private readonly cronService: CronService
+  ) {}
 
-  runDocker() {
-    return new Promise((resolve, reject) => {
-      // Checking if the docker-compose.yml file exists
-      this.checkDockerCompose()
-  
-      // Checking if Docker Compose exists on a local machine
-        spawn('sudo docker-compose', ['version'], {shell: true, stdio: "inherit"})
-          .on('exit', (code) => {
-            if (code !== 0) {
-              reject('Docker compose is not installed');
-          }})
-  
-      // if images and containers don't exist, create images and their containers
-        const dockerComposeProcess = spawn(
-          'sudo docker-compose up -d',
-          { cwd: path.dirname(this.filePath), stdio: 'inherit', shell: true }
-        );
-  
-        let stderr = '';
-        dockerComposeProcess.stderr?.on('data', (data) => {
-          stderr += data;
-        });
-
-        dockerComposeProcess.on("error", (err) => {
-          reject(err)
-        })
-  
-        dockerComposeProcess.on('exit', (code) => {
-          if (code !== 0) {
-            reject(stderr);
-          }
-
-          resolve('ok')
-      });
-  
-      this.cronService.startTask();
-    })
-
+  async findAll() {
+    return await this.projectRepository.find();
   }
 
-  stopDocker() {
-    return new Promise((resolve, reject) => {
-      // Checking if the docker-compose.yml file exists
-      this.checkDockerCompose()
+  async create(createProjectDto: CreateProjectDto, files: IProjectFilesInfo) {
+    try {
+      const { envFilePath, gitPrivateKeyPath } = files;
 
-        const dockerComposeProcess = spawn(
-          'sudo docker-compose down --rmi all',
-          { cwd: path.dirname(this.filePath), stdio: 'inherit', shell: true }
-        );
-  
-        let stderr = '';
-        dockerComposeProcess.stderr?.on('data', (data) => {
-          stderr += data;
-        });
+      const { name, gitLink } = createProjectDto;
+      const srcPath = path.join(__dirname, '..');
+      const uploadPath = path.join(srcPath, 'projects', name);
 
-        dockerComposeProcess.on("error", (err) => {
-          reject(err)
-        })
-  
-        dockerComposeProcess.on('exit', (code) => {
-          if (code !== 0) {
-            reject(stderr);
-          }
-
-          resolve('ok')
+      const newProject = this.projectRepository.create({
+        ...createProjectDto,
+        uploadPath,
+        envFile: envFilePath
       });
-  
-      this.cronService.stopTask();
-    })
+      const result = await this.projectRepository.save(newProject);
+
+      await this.gitProvider.clone({
+        gitLink,
+        uploadPath,
+        sshGitPrivateKeyPath: gitPrivateKeyPath
+      });
+
+      await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
+      await cleanDir(path.join(srcPath, 'tmp'));
+
+      await this.run(result);
+
+      return result;
+    } catch (err) {
+      handleServiceErrors(err);
+    }
   }
 
-  checkDockerCompose() {
-    const exists = fs.existsSync(this.filePath);
-    if (!exists) {
-      throw new InternalServerErrorException(
-        'docker-compose.yml file not found'
-      );
+  async run(project: string | Project): Promise<boolean> {
+    try {
+      let persistedProject: Project;
+
+      if (typeof project === 'string') {
+        persistedProject = await this.projectRepository.findOneBy({
+          name: project
+        });
+      } else {
+        persistedProject = project;
+      }
+
+      if (persistedProject) {
+        const result = await this.dockerProvider.runDocker(
+          persistedProject.uploadPath
+        );
+
+        if (result)
+          this.cronService.addCheckProjectHealthTask(persistedProject);
+        return true;
+      }
+
+      throw new HttpException({ message: 'Project not found' }, 404);
+    } catch (err) {
+      handleServiceErrors(err);
+    }
+  }
+
+  async stop(projectName: string): Promise<boolean> {
+    try {
+      const project = await this.projectRepository.findOneBy({
+        name: projectName
+      });
+      if (project) {
+        const result = await this.dockerProvider.stopDocker(project.uploadPath);
+
+        if (result) this.cronService.stopCheckProjectHealthTask(project);
+
+        return true;
+      }
+
+      throw new HttpException({ message: 'Project not found' }, 404);
+    } catch (err) {
+      handleServiceErrors(err);
     }
   }
 }

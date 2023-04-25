@@ -1,59 +1,63 @@
+import { probe } from '@network-utils/tcp-ping';
 import { Injectable } from '@nestjs/common';
 import { CronExpression } from '@nestjs/schedule/dist/enums';
-import { CronJob } from 'cron';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { ConfigService } from '@nestjs/config';
-import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
-import { probe } from '@network-utils/tcp-ping';
+import { ProjectMailer } from 'src/mailers';
+import { Project } from 'src/project/entities';
+import { CronJob } from 'cron';
+import { handleServiceErrors } from 'src/utils';
+
+enum MinibackCronJob {
+  HealthCheckProjects = 'healthCheckProjects'
+}
 
 @Injectable()
 export class CronService {
-  private shouldRunCronTask = false;
   constructor(
-    private schedulerRegistry: SchedulerRegistry,
-    private configService: ConfigService,
-    private mailService: MailerService
+    private projectMailer: ProjectMailer,
+    private schedulerRegistry: SchedulerRegistry
+  ) {}
+
+  private async checkServerPort(
+    port: number,
+    { email, projectName }: { email: string; projectName: string }
   ) {
-    const serverUrl = this.configService.get<string>('SERVER_URL');
-    const serverPort = Number(this.configService.get<string>('SERVER_PORT'));
-
-    const job = new CronJob(CronExpression.EVERY_5_MINUTES, () => {
-      probe(serverPort, serverUrl).catch(() => {
-        this.sendMail(
-          'Server was broken down',
-          'The server is not responding to ping requests'
-        );
-        this.stopTask();
-      });
+    probe(port, 'localhost').catch(() => {
+      this.projectMailer.sendServerBrokeDownMessage(email, projectName);
     });
-
-    this.schedulerRegistry.addCronJob('check_server', job);
   }
 
-  startTask() {
-    this.shouldRunCronTask = true;
+  private formJobName(taskDefinition: MinibackCronJob, taskPayload: string) {
+    return taskDefinition + '-' + taskPayload;
   }
 
-  stopTask() {
-    this.shouldRunCronTask = false;
-  }
-
-  async sendMail(subject: string, message: string, to = process.env.TO) {
-    const mailOptions: ISendMailOptions = {
-      from: process.env.GMAIL_MAILER_ADDRESS,
-      to: 'slepenkov.nii@yandex.by',
-      subject,
-      text: message,
-      template: 'project.mailer/serverBrokeDown.ejs',
-      context: {
-        projectName: 'test project'
-      }
-    };
+  public addCheckProjectHealthTask({ port, email, name }: Project) {
+    const jobName = this.formJobName(MinibackCronJob.HealthCheckProjects, name);
 
     try {
-      await this.mailService.sendMail(mailOptions);
-    } catch (error) {
-      console.log(error);
+      const currentJob = this.schedulerRegistry.getCronJob(jobName);
+      currentJob.start();
+    } catch (err) {
+      if (err.message && err.message.includes('No Cron Job was found')) {
+        const job = new CronJob(CronExpression.EVERY_5_MINUTES, () =>
+          this.checkServerPort(Number(port), { email, projectName: name })
+        );
+        this.schedulerRegistry.addCronJob(jobName, job);
+        job.start();
+      } else {
+        handleServiceErrors(err);
+      }
     }
+  }
+
+  public stopCheckProjectHealthTask({ name }: Project) {
+    const jobName = this.formJobName(MinibackCronJob.HealthCheckProjects, name);
+    const job = this.schedulerRegistry.getCronJob(jobName);
+    job.stop();
+  }
+
+  public deleteCheckProjectHealthTask({ name }: Project) {
+    const jobName = this.formJobName(MinibackCronJob.HealthCheckProjects, name);
+    this.schedulerRegistry.deleteCronJob(jobName);
   }
 }
