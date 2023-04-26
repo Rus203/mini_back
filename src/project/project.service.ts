@@ -1,7 +1,7 @@
 import fsPromise from 'fs/promises';
 import path from 'path';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -31,6 +31,14 @@ export class ProjectService {
 
   async findAll() {
     return await this.projectRepository.find();
+  }
+
+  async findOneByName(name: string): Promise<Project> {
+    try {
+      return await this.projectRepository.findOneByOrFail({ name });
+    } catch (err) {
+      throw new NotFoundException();
+    }
   }
 
   async create(createProjectDto: CreateProjectDto, files: IProjectFilesInfo) {
@@ -82,8 +90,12 @@ export class ProjectService {
           persistedProject.uploadPath
         );
 
-        if (result)
+        if (result) {
           this.cronService.addCheckProjectHealthTask(persistedProject);
+          persistedProject.isDeployed = false;
+          await this.projectRepository.save(persistedProject);
+        }
+
         return true;
       }
 
@@ -101,7 +113,11 @@ export class ProjectService {
       if (project) {
         const result = await this.dockerProvider.stopDocker(project.uploadPath);
 
-        if (result) this.cronService.stopCheckProjectHealthTask(project);
+        if (result) {
+          this.cronService.stopCheckProjectHealthTask(project);
+          project.isDeployed = false;
+          await this.projectRepository.save(project);
+        }
 
         return true;
       }

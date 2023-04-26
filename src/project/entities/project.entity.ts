@@ -23,4 +23,7 @@ export class Project {
 
   @Column()
   port: string;
+
+  @Column({ default: false })
+  isDeployed: boolean;
 }

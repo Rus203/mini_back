@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
   UploadedFiles,
@@ -15,6 +16,16 @@ import { CreateProjectDto } from './dto';
 @Controller('project')
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
+
+  @Get()
+  async index(@Param('name') name: string) {
+    return await this.projectService.findAll();
+  }
+
+  @Get(':name')
+  async show(@Param('name') name: string) {
+    return await this.projectService.findOneByName(name);
+  }
 
   @Post()
   @UseInterceptors(
