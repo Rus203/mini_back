@@ -22,9 +22,14 @@ services:
     image: postgres
     env_file:
       - ./.env
+    expose:
+      - ${POSTGRES_PORT}
+    ports:
+      - ${POSTGRES_PORT}
     restart: always
     networks:
       - mini_back
+    command: -p ${POSTGRES_PORT}
 
 networks:
   mini_back:
