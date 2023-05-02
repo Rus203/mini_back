@@ -1,7 +1,6 @@
 import { Project } from '../entities/project.entity';
 import {
   IsEmail,
-  IsNumber,
   IsNumberString,
   IsString,
   MaxLength,

@@ -6,8 +6,6 @@ import { ProjectMailer } from 'src/mailers';
 import { Project } from 'src/project/entities';
 import { CronJob } from 'cron';
 import { handleServiceErrors } from 'src/utils';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 enum MinibackCronJob {
   HealthCheckProjects = 'healthCheckProjects'
@@ -17,8 +15,7 @@ enum MinibackCronJob {
 export class CronService {
   constructor(
     private projectMailer: ProjectMailer,
-    private schedulerRegistry: SchedulerRegistry,
-    @InjectRepository(Project) private projectsRepository: Repository<Project>
+    private schedulerRegistry: SchedulerRegistry
   ) {}
 
   private async checkServerPort(
@@ -27,10 +24,6 @@ export class CronService {
   ) {
     probe(port, 'localhost').catch(async () => {
       await this.projectMailer.sendServerBrokeDownMessage(email, projectName);
-      await this.projectsRepository.update(
-        { name: projectName },
-        { isDeployed: false }
-      );
     });
   }
 
