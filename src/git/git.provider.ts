@@ -1,7 +1,7 @@
 import fs, { access } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { Injectable } from '@nestjs/common';
-import { ChildProcessCommandProvider } from '../utils';
+import { ChildProcessCommandProvider, cleanDir } from '../utils';
 
 export interface IGitCloneParams {
   gitLink: string;
@@ -18,20 +18,22 @@ export class GitProvider extends ChildProcessCommandProvider {
           fs.mkdirSync(uploadPath, { recursive: true });
         }
 
-        const childProcess = spawn(
-          'eval $(ssh-agent -s)',
-          [
-            `&& cd ${uploadPath}`,
-            `&& chmod 600 ${sshGitPrivateKeyPath}`,
-            `&& ssh-add ${sshGitPrivateKeyPath}`,
-            `&& git clone ${gitLink} ./ --config core.sshCommand="ssh -o 'StrictHostKeyChecking=no'"`
-          ],
-          {
-            shell: true
-          }
-        );
+        cleanDir(uploadPath).then(() => {
+          const childProcess = spawn(
+            'eval $(ssh-agent -s)',
+            [
+              `&& cd ${uploadPath}`,
+              `&& chmod 600 ${sshGitPrivateKeyPath}`,
+              `&& ssh-add ${sshGitPrivateKeyPath}`,
+              `&& git clone ${gitLink} ./ --config core.sshCommand="ssh -o 'StrictHostKeyChecking=no'"`
+            ],
+            {
+              shell: true
+            }
+          );
 
-        this.handleProcessErrors(childProcess, resolve, reject);
+          this.handleProcessErrors(childProcess, resolve, reject);
+        });
       });
     });
   }

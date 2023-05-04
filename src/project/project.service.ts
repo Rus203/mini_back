@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { Repository } from 'typeorm';
 
-import { Project } from './entities';
+import { Project, ProjectState } from './entities';
 import { cleanDir, handleServiceErrors } from 'src/utils';
 import { CreateProjectDto } from './dto';
 import { GitProvider } from 'src/git';
@@ -15,7 +15,7 @@ import { DockerProvider } from 'src/docker';
 import { CronService } from 'src/cron';
 
 interface IProjectFilesInfo {
-  envFilePath: string;
+  envFilePath: string | null;
   gitPrivateKeyPath: string;
 }
 
@@ -33,9 +33,9 @@ export class ProjectService {
     return await this.projectRepository.find();
   }
 
-  async findOneByName(name: string): Promise<Project> {
+  async findOneById(id: string): Promise<Project> {
     try {
-      return await this.projectRepository.findOneByOrFail({ name });
+      return await this.projectRepository.findOneByOrFail({ id });
     } catch (err) {
       throw new NotFoundException();
     }
@@ -62,7 +62,10 @@ export class ProjectService {
         sshGitPrivateKeyPath: gitPrivateKeyPath
       });
 
-      await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
+      if (envFilePath) {
+        await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
+      }
+
       await cleanDir(path.join(srcPath, 'tmp'));
 
       await this.run(result);
@@ -79,20 +82,25 @@ export class ProjectService {
 
       if (typeof project === 'string') {
         persistedProject = await this.projectRepository.findOneBy({
-          name: project
+          id: project
         });
       } else {
         persistedProject = project;
       }
 
       if (persistedProject) {
-        const result = await this.dockerProvider.runDocker(
-          persistedProject.uploadPath
-        );
+        let result: boolean;
+
+        try {
+          await this.dockerProvider.runDocker(persistedProject.uploadPath);
+          result = true;
+        } catch (err) {
+          handleServiceErrors(err);
+        }
 
         if (result) {
           this.cronService.addCheckProjectHealthTask(persistedProject);
-          persistedProject.isDeployed = false;
+          persistedProject.state = ProjectState.Running;
           await this.projectRepository.save(persistedProject);
         }
 
@@ -105,17 +113,17 @@ export class ProjectService {
     }
   }
 
-  async stop(projectName: string): Promise<boolean> {
+  async stop(projectId: string): Promise<boolean> {
     try {
       const project = await this.projectRepository.findOneBy({
-        name: projectName
+        id: projectId
       });
       if (project) {
         const result = await this.dockerProvider.stopDocker(project.uploadPath);
 
         if (result) {
           this.cronService.stopCheckProjectHealthTask(project);
-          project.isDeployed = false;
+          project.state = ProjectState.Failed;
           await this.projectRepository.save(project);
         }
 

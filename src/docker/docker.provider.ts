@@ -11,17 +11,21 @@ export class DockerProvider extends ChildProcessCommandProvider {
     return new Promise((resolve, reject) => {
       this.checkDockerComposeFile(projectDirectory);
 
-      this.checkDockerComposeInstallation().then(() => {
-        const dockerComposeProcess = spawn(
-          'sudo docker-compose up --build -d',
-          {
-            cwd: projectDirectory,
-            shell: true
-          }
-        );
+      this.checkDockerComposeInstallation()
+        .then(() => {
+          const dockerComposeProcess = spawn(
+            'sudo docker-compose up --build -d',
+            {
+              cwd: projectDirectory,
+              shell: true
+            }
+          );
 
-        this.handleProcessErrors(dockerComposeProcess, resolve, reject);
-      });
+          this.handleProcessErrors(dockerComposeProcess, resolve, reject);
+        })
+        .catch((err) => {
+          reject(err);
+        });
     });
   }
 
