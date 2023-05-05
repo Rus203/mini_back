@@ -95,12 +95,13 @@ export class ProjectService {
           await this.dockerProvider.runDocker(persistedProject.uploadPath);
           result = true;
         } catch (err) {
+          persistedProject.state = ProjectState.FAILED;
           handleServiceErrors(err);
         }
 
         if (result) {
           this.cronService.addCheckProjectHealthTask(persistedProject);
-          persistedProject.state = ProjectState.Running;
+          persistedProject.state = ProjectState.DEPLOYED;
           await this.projectRepository.save(persistedProject);
         }
 
@@ -113,7 +114,7 @@ export class ProjectService {
     }
   }
 
-  async stop(projectId: string): Promise<boolean> {
+  async delete(projectId: string): Promise<boolean> {
     try {
       const project = await this.projectRepository.findOneBy({
         id: projectId
@@ -123,8 +124,7 @@ export class ProjectService {
 
         if (result) {
           this.cronService.stopCheckProjectHealthTask(project);
-          project.state = ProjectState.Failed;
-          await this.projectRepository.save(project);
+          await this.projectRepository.delete({ id: projectId })
         }
 
         return true;

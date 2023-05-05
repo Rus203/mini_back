@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 export enum ProjectState {
-  Undeployed = 'undeployed',
-  Running = 'running',
-  Failed = 'failed'
+  UNDEPLOYED = 'undeployed',
+  DEPLOYED = 'deployed',
+  FAILED = 'failed',
 }
 
 @Entity()
@@ -58,7 +58,7 @@ export class Project {
   @Column({
     type: 'enum',
     enum: ProjectState,
-    default: ProjectState.Undeployed
+    default: ProjectState.UNDEPLOYED
   })
   state: ProjectState;
 }
