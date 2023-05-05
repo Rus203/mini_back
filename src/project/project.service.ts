@@ -113,7 +113,7 @@ export class ProjectService {
     }
   }
 
-  async stop(projectId: string): Promise<boolean> {
+  async delete(projectId: string): Promise<boolean> {
     try {
       const project = await this.projectRepository.findOneBy({
         id: projectId
@@ -123,8 +123,7 @@ export class ProjectService {
 
         if (result) {
           this.cronService.stopCheckProjectHealthTask(project);
-          project.state = ProjectState.Failed;
-          await this.projectRepository.save(project);
+          await this.projectRepository.delete({ id: projectId })
         }
 
         return true;
