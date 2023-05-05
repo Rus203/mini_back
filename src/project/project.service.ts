@@ -95,12 +95,13 @@ export class ProjectService {
           await this.dockerProvider.runDocker(persistedProject.uploadPath);
           result = true;
         } catch (err) {
+          persistedProject.state = ProjectState.FAILED;
           handleServiceErrors(err);
         }
 
         if (result) {
           this.cronService.addCheckProjectHealthTask(persistedProject);
-          persistedProject.state = ProjectState.Running;
+          persistedProject.state = ProjectState.DEPLOYED;
           await this.projectRepository.save(persistedProject);
         }
 
