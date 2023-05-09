@@ -14,29 +14,17 @@ export class ServerProvider {
 
   async getStatus() {
     const cpuUsage = await promiseGetCpuUsage();
-    const ram = this.getMemoryInfo();
-    const rom = this.getDiskSpaceInfo();
 
-    return { cpuUsage, rom, ram };
-  }
-
-  async getMemoryInfo() {
     const { stdout } = await promisefiedExec('free -h');
-
     const lines = stdout.trim().split('\n');
     const memoryInfo = lines[1].replace(/ +/g, ' ').split(' ');
-
     const totalMemory = memoryInfo[1];
     const usedMemory = memoryInfo[2];
 
-    return { totalMemory, usedMemory };
-  }
-
-  async getDiskSpaceInfo() {
     const stats = await fs.stat('/');
     const totalSpace = stats.blocks * stats.blksize;
     const usedSpace = stats.size;
 
-    return { totalSpace, usedSpace}
+    return { cpuUsage, rom: { totalSpace, usedSpace}, ram: { totalMemory, usedMemory} };
   }
 }
