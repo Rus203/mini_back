@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import util from 'util';
 import { exec } from 'child_process';
 import { cpuUsage } from 'os-utils';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 const promisefiedExec = util.promisify(exec);
 const promiseGetCpuUsage = util.promisify(cpuUsage);
@@ -15,7 +15,7 @@ export class ServerProvider {
   async getStatus() {
     const cpuUsage = await promiseGetCpuUsage();
     const ram = this.getMemoryInfo();
-    const rom = this.getMemoryInfo();
+    const rom = this.getDiskSpaceInfo();
 
     return { cpuUsage, rom, ram };
   }
@@ -32,10 +32,11 @@ export class ServerProvider {
     return { totalMemory, usedMemory };
   }
 
-  async getDiskSpaceInfo(path: string) {
-    const { blksize, blocks, bfree } = fs.statSync('/');
-    const totalStorage = blksize * blocks;
-    const usedStorage = blksize * (blocks - bfree);
-    return { total: totalStorage, used: usedStorage };
+  async getDiskSpaceInfo() {
+    const stats = await fs.stat('/');
+    const totalSpace = stats.blocks * stats.blksize;
+    const usedSpace = stats.size;
+
+    return { totalSpace, usedSpace}
   }
 }
