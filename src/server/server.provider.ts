@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import util from 'util';
 import { exec } from 'child_process';
+import * as os from 'os';
 
 const promisifiedExec = util.promisify(exec);
 
@@ -20,13 +21,16 @@ export class ServerProvider {
     const [notNeeded, ...diskInfo] = diskOutput.trim().split('\n');
     const [totalDisk, usedDisk, freeDisk] = diskInfo[0].split(/\s+/);
 
+    const cpuUsage = os.loadavg()[0];
+
     return {
       totalMemory,
-      usedMemory,
       freeMemory,
+      usedMemory,
       totalDisk,
       usedDisk,
-      freeDisk
+      freeDisk,
+      cpuUsage
     };
   }
 }
