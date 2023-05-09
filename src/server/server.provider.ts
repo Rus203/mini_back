@@ -2,35 +2,40 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import util from 'util';
 import { exec } from 'child_process';
-import * as os from 'os';
+import { cpuUsage } from 'os-utils';
+import * as fs from 'fs';
 
-const promisifiedExec = util.promisify(exec);
+const promisefiedExec = util.promisify(exec);
+const promiseGetCpuUsage = util.promisify(cpuUsage);
 
 @Injectable()
 export class ServerProvider {
   constructor(private readonly configService: ConfigService) {}
 
   async getStatus() {
-    const { stdout: memoryOutput } = await promisifiedExec('free -h');
-    const [unused, ...memoryInfo] = memoryOutput.trim().split('\n');
-    const [totalMemory, usedMemory, freeMemory] = memoryInfo[0]
-      .split(/\s+/)
-      .slice(1);
+    const cpuUsage = await promiseGetCpuUsage();
+    const ram = this.getMemoryInfo();
+    const rom = this.getMemoryInfo();
 
-    const { stdout: diskOutput } = await promisifiedExec('df -h');
-    const [notNeeded, ...diskInfo] = diskOutput.trim().split('\n');
-    const [totalDisk, usedDisk, freeDisk] = diskInfo[0].split(/\s+/);
+    return { cpuUsage, rom, ram };
+  }
 
-    const cpuUsage = os.loadavg()[0];
+  async getMemoryInfo() {
+    const { stdout } = await promisefiedExec('free -h');
 
-    return {
-      totalMemory,
-      freeMemory,
-      usedMemory,
-      totalDisk,
-      usedDisk,
-      freeDisk,
-      cpuUsage
-    };
+    const lines = stdout.trim().split('\n');
+    const memoryInfo = lines[1].replace(/ +/g, ' ').split(' ');
+
+    const totalMemory = memoryInfo[1];
+    const usedMemory = memoryInfo[2];
+
+    return { totalMemory, usedMemory };
+  }
+
+  async getDiskSpaceInfo(path: string) {
+    const { blksize, blocks, bfree } = fs.statSync('/');
+    const totalStorage = blksize * blocks;
+    const usedStorage = blksize * (blocks - bfree);
+    return { total: totalStorage, used: usedStorage };
   }
 }
