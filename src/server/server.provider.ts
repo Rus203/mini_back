@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
+import util from 'util';
+import { exec } from 'child_process';
+
+const promisifiedExec = util.promisify(exec);
 
 @Injectable()
 export class ServerProvider {
@@ -9,11 +11,11 @@ export class ServerProvider {
 
   async getStatus() {
     try {
-      const { stdout: memoryOutput } = await exec('free -h');
+      const { stdout: memoryOutput } = await promisifiedExec('free -h');
       const [unused, ...memoryInfo] = memoryOutput.trim().split('\n');
       const [totalMemory, usedMemory, freeMemory] = memoryInfo[0].split(/\s+/).slice(1);
   
-      const { stdout: diskOutput } = await exec('df -h');
+      const { stdout: diskOutput } = await promisifiedExec('df -h');
       const [notNeeded, ...diskInfo] = diskOutput.trim().split('\n');
       const [filesystem, totalDisk, usedDisk, freeDisk] = diskInfo[0].split(/\s+/);
   
