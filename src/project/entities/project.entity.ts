@@ -61,4 +61,10 @@ export class Project {
     default: ProjectState.Undeployed
   })
   state: ProjectState;
+
+  @ApiProperty({
+    type: String
+  })
+  @Column()
+  gitPrivateKeyPath: string;
 }

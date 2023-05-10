@@ -14,6 +14,7 @@ import { GitProvider } from 'src/git';
 import { DockerProvider } from 'src/docker';
 import { CronService } from 'src/cron';
 
+
 interface IProjectFilesInfo {
   envFilePath: string | null;
   gitPrivateKeyPath: string;
@@ -45,30 +46,31 @@ export class ProjectService {
     try {
       const { envFilePath, gitPrivateKeyPath } = files;
 
-      const { name, gitLink } = createProjectDto;
+      const { name } = createProjectDto;
       const srcPath = path.join(__dirname, '..');
       const uploadPath = path.join(srcPath, 'projects', name);
 
       const newProject = this.projectRepository.create({
         ...createProjectDto,
         uploadPath,
-        envFile: envFilePath
+        envFile: envFilePath,
+        gitPrivateKeyPath
       });
       const result = await this.projectRepository.save(newProject);
 
-      await this.gitProvider.clone({
-        gitLink,
-        uploadPath,
-        sshGitPrivateKeyPath: gitPrivateKeyPath
-      });
+      // await this.gitProvider.clone({
+      //   gitLink,
+      //   uploadPath,
+      //   sshGitPrivateKeyPath: gitPrivateKeyPath
+      // });
 
-      if (envFilePath) {
-        await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
-      }
+      // if (envFilePath) {
+      //   await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
+      // }
 
-      await cleanDir(path.join(srcPath, 'tmp'));
+      // await cleanDir(path.join(srcPath, 'tmp'));
 
-      await this.run(result);
+      // await this.run(result);
 
       return result;
     } catch (err) {
@@ -76,20 +78,27 @@ export class ProjectService {
     }
   }
 
-  async run(project: string | Project): Promise<boolean> {
+  async run(id: string): Promise<boolean> {
     try {
-      let persistedProject: Project;
-
-      if (typeof project === 'string') {
-        persistedProject = await this.projectRepository.findOneBy({
-          id: project
-        });
-      } else {
-        persistedProject = project;
-      }
+      const persistedProject = await this.projectRepository.findOneBy({ id });
 
       if (persistedProject) {
         let result: boolean;
+
+        const { gitLink, uploadPath, gitPrivateKeyPath, envFile } =
+          persistedProject;
+        await this.gitProvider.clone({
+          gitLink,
+          uploadPath,
+          sshGitPrivateKeyPath: gitPrivateKeyPath
+        });
+
+        if (envFile) {
+          await fsPromise.cp(envFile, path.join(uploadPath, '.env'));
+          await fsPromise.unlink(envFile);
+        }
+
+        await fsPromise.unlink(gitPrivateKeyPath);
 
         try {
           await this.dockerProvider.runDocker(persistedProject.uploadPath);
@@ -123,7 +132,7 @@ export class ProjectService {
 
         if (result) {
           this.cronService.stopCheckProjectHealthTask(project);
-          await this.projectRepository.delete({ id: projectId })
+          await this.projectRepository.delete({ id: projectId });
         }
 
         return true;
