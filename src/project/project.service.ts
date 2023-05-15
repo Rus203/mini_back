@@ -64,7 +64,6 @@ export class ProjectService {
   }
 
   async run(id: string): Promise<boolean> {
-    console.log('id ', id);
     try {
       const persistedProject = await this.projectRepository.findOneBy({ id });
 

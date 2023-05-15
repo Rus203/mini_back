@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import util from 'util';
 import { exec } from 'child_process';
 import { cpuUsage } from 'os-utils';
-import * as fs from 'fs/promises';
 
 const promisefiedExec = util.promisify(exec);
 
@@ -35,10 +34,12 @@ export class ServerProvider {
   }
 
   async getRom() {
-    const stats = await fs.stat('/');
-    const totalSpace = stats.blocks * stats.blksize + 'mb';
-    const usedSpace = stats.size + 'mb';
+    const { stdout } = await promisefiedExec('df -h');
 
+    const lines = stdout.trim().split('\n');
+    const diskInfo = lines[1].replace(/ +/g, ' ').split(' ');
+    const totalSpace = diskInfo[1];
+    const usedSpace = diskInfo[2];
     return { totalSpace, usedSpace };
   }
 }
