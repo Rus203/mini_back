@@ -5,7 +5,8 @@ import {
   Param,
   Post,
   UploadedFiles,
-  UseInterceptors
+  UseInterceptors,
+  Delete
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
@@ -129,7 +130,7 @@ export class ProjectController {
     summary: 'Stop project',
     description: 'Stops project image on server'
   })
-  @Post(':project_id/delete')
+  @Delete(':project_id/delete')
   async stopDocker(@Param('project_id') projectId: string) {
     return await this.projectService.delete(projectId);
   }

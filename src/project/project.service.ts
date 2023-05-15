@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Project, ProjectState } from './entities';
-import { cleanDir, handleServiceErrors } from 'src/utils';
+import { handleServiceErrors } from 'src/utils';
 import { CreateProjectDto } from './dto';
 import { GitProvider } from 'src/git';
 import { DockerProvider } from 'src/docker';
@@ -57,21 +57,6 @@ export class ProjectService {
         gitPrivateKeyPath
       });
       const result = await this.projectRepository.save(newProject);
-
-      // await this.gitProvider.clone({
-      //   gitLink,
-      //   uploadPath,
-      //   sshGitPrivateKeyPath: gitPrivateKeyPath
-      // });
-
-      // if (envFilePath) {
-      //   await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
-      // }
-
-      // await cleanDir(path.join(srcPath, 'tmp'));
-
-      // await this.run(result);
-
       return result;
     } catch (err) {
       handleServiceErrors(err);
@@ -127,13 +112,14 @@ export class ProjectService {
       const project = await this.projectRepository.findOneBy({
         id: projectId
       });
-      if (project) {
-        const result = await this.dockerProvider.stopDocker(project.uploadPath);
 
-        if (result) {
+      if (project) {
+        if (project.state !== ProjectState.Undeployed) {
+          await this.dockerProvider.stopDocker(project.uploadPath);
           this.cronService.stopCheckProjectHealthTask(project);
-          await this.projectRepository.delete({ id: projectId });
         }
+
+        await this.projectRepository.delete({ id: projectId });
 
         return true;
       }

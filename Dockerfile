@@ -6,6 +6,7 @@ RUN apk add --no-cache openssh
 RUN apk add git
 RUN apk add docker && apk add docker-compose
 RUN apk add sudo
+RUN npm update
 RUN npm i
 RUN npm i -g nest
 RUN npm run build

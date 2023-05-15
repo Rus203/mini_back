@@ -6,7 +6,6 @@ import { cpuUsage } from 'os-utils';
 import * as fs from 'fs/promises';
 
 const promisefiedExec = util.promisify(exec);
-const promiseGetCpuUsage = util.promisify(cpuUsage);
 
 @Injectable()
 export class ServerProvider {
