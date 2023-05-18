@@ -1,26 +1,26 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import { Server } from 'socket.io';
 import util from 'util';
 import { exec } from 'child_process';
 import { cpuUsage } from 'os-utils';
 
 const promisefiedExec = util.promisify(exec);
 
-@Injectable()
-export class ServerProvider {
-  constructor(private readonly configService: ConfigService) {}
-
+@WebSocketGateway()
+export class ServerGateway {
+  server: Server;
+  @SubscribeMessage('message')
   async getStatus() {
     const cpu = await new Promise((resolve) => cpuUsage(resolve));
 
     const rom = await this.getRom();
     const ram = await this.getRam();
 
-    return {
-      cpuUsage: cpu,
+    this.server.emit('message', {
+      cpu,
       rom,
       ram
-    };
+    });
   }
 
   async getRam() {

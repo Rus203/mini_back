@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ServerController } from './server.controller';
-import { ServerProvider } from './server.provider';
+import { ServerGateway } from './server.gateway';
 
 @Module({
   controllers: [ServerController],
-  providers: [ServerProvider]
+  providers: [ServerGateway]
 })
 export class ServerModule {}
