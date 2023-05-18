@@ -6,7 +6,12 @@ import { cpuUsage } from 'os-utils';
 
 const promisefiedExec = util.promisify(exec);
 
-@WebSocketGateway({ cors: true, port: 3010 })
+@WebSocketGateway(3010, {
+  transports: ['websocket'],
+  cors: {
+    origin: '*'
+  }
+})
 export class ServerGateway {
   server: Server;
   @SubscribeMessage('message')
