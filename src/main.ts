@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
+import { cors } from '@nestjs/platform-express';
 config();
 
 import { NestFactory } from '@nestjs/core';
@@ -23,7 +24,7 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   const PORT = process.env.SERVER_PORT!;
-  app.enableCors();
+  app.use(cors({ origin: false }))
   await app.listen(PORT);
   console.log(`App is listening on port ${PORT}`);
 }

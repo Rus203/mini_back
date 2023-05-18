@@ -1,4 +1,8 @@
-import { SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage
+} from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import util from 'util';
 import { exec } from 'child_process';
@@ -6,26 +10,21 @@ import { cpuUsage } from 'os-utils';
 
 const promisefiedExec = util.promisify(exec);
 
-@WebSocketGateway(3010, {
-  transports: ['websocket'],
-  cors: {
-    origin: '*'
-  }
-})
+@WebSocketGateway(3010)
 export class ServerGateway {
-  server: Server;
+  @WebSocketServer() server: Server;
   @SubscribeMessage('message')
-  async getStatus() {
+  async getStatus(client: any, payload: any) {
     const cpu = await new Promise((resolve) => cpuUsage(resolve));
 
     const rom = await this.getRom();
     const ram = await this.getRam();
 
-    this.server.emit('message', {
+    return {
       cpu,
       rom,
       ram
-    });
+    };
   }
 
   async getRam() {
