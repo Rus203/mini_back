@@ -10,7 +10,7 @@ import { cpuUsage } from 'os-utils';
 
 const promisefiedExec = util.promisify(exec);
 
-@WebSocketGateway(3010)
+@WebSocketGateway(3010, { cors: '*' })
 export class ServerGateway {
   @WebSocketServer() server: Server;
   @SubscribeMessage('message')
@@ -20,11 +20,7 @@ export class ServerGateway {
     const rom = await this.getRom();
     const ram = await this.getRam();
 
-    return {
-      cpu,
-      rom,
-      ram
-    };
+    this.server.emit('message', { cpu, rom, ram });
   }
 
   async getRam() {
