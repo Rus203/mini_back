@@ -7,20 +7,26 @@ import { Server } from 'socket.io';
 import util from 'util';
 import { exec } from 'child_process';
 import { cpuUsage } from 'os-utils';
+import { OnModuleInit } from '@nestjs/common';
 
 const promisefiedExec = util.promisify(exec);
 
 @WebSocketGateway({ cors: '*' })
-export class ServerGateway {
+export class ServerGateway implements OnModuleInit {
   @WebSocketServer() server: Server;
   @SubscribeMessage('message')
-  async getStatus(client: any, payload: any) {
+  async sendStatus() {
     const cpu = await new Promise((resolve) => cpuUsage(resolve));
 
     const rom = await this.getRom();
     const ram = await this.getRam();
-
     this.server.emit('message', { cpu, rom, ram });
+  }
+
+  async onModuleInit() {
+    setInterval(() => {
+      this.sendStatus();
+    }, 1000);
   }
 
   async getRam() {
