@@ -1,25 +1,34 @@
 import {
   WebSocketGateway,
   WebSocketServer,
-  SubscribeMessage
+  SubscribeMessage,
+  OnGatewayConnection,
+  OnGatewayDisconnect
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import util from 'util';
 import { exec } from 'child_process';
 import { cpuUsage } from 'os-utils';
+import { CronJob } from 'cron';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 const promisefiedExec = util.promisify(exec);
 
 @WebSocketGateway({ cors: '*' })
-export class ServerGateway {
-  @WebSocketServer() server: Server;
-  @SubscribeMessage('message')
-  async sendStatus() {
-    const cpu = await new Promise((resolve) => cpuUsage(resolve));
+export class ServerGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  constructor(private schedulerRegistry: SchedulerRegistry) {}
 
-    const rom = await this.getRom();
-    const ram = await this.getRam();
-    this.server.emit('message', { cpu, rom, ram });
+  @WebSocketServer() server: Server;
+  // @SubscribeMessage('message')
+  async sendStatus() {
+    const cpu = new Promise((resolve) => cpuUsage(resolve));
+
+    const rom = this.getRom();
+    const ram = this.getRam();
+
+    await Promise.all([cpu, rom, ram]).then(([cpu, rom, ram]) => {
+      this.server.emit('message', { cpu, rom, ram });
+    });
   }
 
   async getRam() {
@@ -40,5 +49,19 @@ export class ServerGateway {
     const totalSpace = diskInfo[1];
     const usedSpace = diskInfo[2];
     return { totalSpace, usedSpace };
+  }
+
+  handleConnection() {
+    const job = new CronJob('*/1 * * * * *', () => {
+      this.sendStatus();
+    });
+    this.schedulerRegistry.addCronJob('statistic', job);
+    job.start();
+  }
+
+  handleDisconnect() {
+    const job = this.schedulerRegistry.getCronJob('statistic');
+    job.stop();
+    this.schedulerRegistry.deleteCronJob('statistic');
   }
 }
