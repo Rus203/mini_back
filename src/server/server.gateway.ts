@@ -1,7 +1,6 @@
 import {
   WebSocketGateway,
   WebSocketServer,
-  SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect
 } from '@nestjs/websockets';
@@ -11,15 +10,17 @@ import { exec } from 'child_process';
 import { cpuUsage } from 'os-utils';
 import { CronJob } from 'cron';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { OnApplicationBootstrap } from '@nestjs/common';
 
 const promisefiedExec = util.promisify(exec);
 
 @WebSocketGateway({ cors: '*' })
-export class ServerGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ServerGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnApplicationBootstrap
+{
   constructor(private schedulerRegistry: SchedulerRegistry) {}
 
   @WebSocketServer() server: Server;
-  // @SubscribeMessage('message')
   async sendStatus() {
     const cpu = new Promise((resolve) => cpuUsage(resolve));
 
@@ -52,16 +53,20 @@ export class ServerGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleConnection() {
-    const job = new CronJob('*/1 * * * * *', () => {
-      this.sendStatus();
-    });
-    this.schedulerRegistry.addCronJob('statistic', job);
-    job.start();
+    const cronTask = this.schedulerRegistry.getCronJob('statistic');
+    cronTask.start();
   }
 
   handleDisconnect() {
-    const job = this.schedulerRegistry.getCronJob('statistic');
-    job.stop();
-    this.schedulerRegistry.deleteCronJob('statistic');
+    const cronTask = this.schedulerRegistry.getCronJob('statistic');
+    cronTask.stop();
+  }
+
+  onApplicationBootstrap() {
+    const job = new CronJob('*/1 * * * * *', () => {
+      this.sendStatus();
+    });
+
+    this.schedulerRegistry.addCronJob('statistic', job);
   }
 }

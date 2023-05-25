@@ -14,7 +14,6 @@ import { GitProvider } from 'src/git';
 import { DockerProvider } from 'src/docker';
 import { CronService } from 'src/cron';
 
-
 interface IProjectFilesInfo {
   envFilePath: string | null;
   gitPrivateKeyPath: string;
