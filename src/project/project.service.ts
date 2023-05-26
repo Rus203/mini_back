@@ -63,19 +63,19 @@ export class ProjectService {
   }
 
   async run(id: string): Promise<boolean> {
+    const persistedProject = await this.projectRepository.findOneBy({ id });
+
+    if (!persistedProject) {
+      throw new HttpException({ message: 'Project not found' }, 404);
+    }
+
     try {
-      const persistedProject = await this.projectRepository.findOneBy({ id });
-
-      if (!persistedProject) {
-        console.log(persistedProject);
-        throw new HttpException({ message: 'Project not found' }, 404);
-      }
-
       if (persistedProject.state === ProjectState.Undeployed) {
         let result: boolean;
 
         const { gitLink, uploadPath, gitPrivateKeyPath, envFile } =
           persistedProject;
+
         await this.gitProvider.clone({
           gitLink,
           uploadPath,
@@ -110,6 +110,8 @@ export class ProjectService {
         );
       }
     } catch (err) {
+      persistedProject.state = ProjectState.Failed;
+      await this.projectRepository.save(persistedProject);
       handleServiceErrors(err);
     }
   }
