@@ -8,11 +8,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Project, ProjectState } from './entities';
-import { handleServiceErrors } from 'src/utils';
+import {
+  analyzeDockerfile,
+  checkPortAvailability,
+  handleServiceErrors
+} from 'src/utils';
 import { CreateProjectDto } from './dto';
 import { GitProvider } from 'src/git';
 import { DockerProvider } from 'src/docker';
 import { CronService } from 'src/cron';
+import { analyzeDockerComposeFile } from 'src/utils';
 
 interface IProjectFilesInfo {
   envFilePath: string | null;
@@ -55,8 +60,8 @@ export class ProjectService {
         envFile: envFilePath,
         gitPrivateKeyPath
       });
-      const result = await this.projectRepository.save(newProject);
-      return result;
+
+      return await this.projectRepository.save(newProject);
     } catch (err) {
       handleServiceErrors(err);
     }
@@ -82,6 +87,17 @@ export class ProjectService {
           sshGitPrivateKeyPath: gitPrivateKeyPath
         });
 
+        const ports = [
+          ...analyzeDockerComposeFile(uploadPath),
+          ...analyzeDockerfile(uploadPath)
+        ];
+
+        console.log('ports: ', ports);
+
+        await checkPortAvailability(ports);
+
+        console.log('passed the port check');
+
         if (envFile) {
           await fsPromise.cp(envFile, path.join(uploadPath, '.env'));
           await fsPromise.unlink(envFile);
@@ -105,7 +121,7 @@ export class ProjectService {
         return true;
       } else {
         throw new HttpException(
-          { message: 'Project has already deployed' },
+          { message: 'Project has already deployed or failed' },
           404
         );
       }

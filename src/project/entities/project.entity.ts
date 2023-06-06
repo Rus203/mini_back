@@ -19,7 +19,7 @@ export class Project {
     type: String
   })
   @Index()
-  @Column({ unique: true })
+  @Column()
   name: string;
 
   @ApiProperty({
