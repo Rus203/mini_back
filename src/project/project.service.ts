@@ -11,13 +11,14 @@ import { Project, ProjectState } from './entities';
 import {
   analyzeDockerfile,
   checkPortAvailability,
-  handleServiceErrors
+  handleServiceErrors,
+  analyzeDockerComposeFile
 } from 'src/utils';
 import { CreateProjectDto } from './dto';
 import { GitProvider } from 'src/git';
 import { DockerProvider } from 'src/docker';
 import { CronService } from 'src/cron';
-import { analyzeDockerComposeFile } from 'src/utils';
+import { PortService } from 'src/port/port.service';
 
 interface IProjectFilesInfo {
   envFilePath: string | null;
@@ -31,7 +32,8 @@ export class ProjectService {
     private readonly projectRepository: Repository<Project>,
     private readonly gitProvider: GitProvider,
     private readonly dockerProvider: DockerProvider,
-    private readonly cronService: CronService
+    private readonly cronService: CronService,
+    private readonly portService: PortService
   ) {}
 
   async findAll() {
@@ -92,11 +94,16 @@ export class ProjectService {
           ...analyzeDockerfile(uploadPath)
         ];
 
-        console.log('ports: ', ports);
+        const promises = ports.map(async (port) => {
+          const res = await checkPortAvailability(port);
+          const ports = await this.portService.getPorts({ port });
+          if (!res || ports.length > 0) {
+            throw new Error('This port is not available');
+          }
+          await this.portService.addPort(port);
+        });
 
-        await checkPortAvailability(ports);
-
-        console.log('passed the port check');
+        await Promise.all(promises);
 
         if (envFile) {
           await fsPromise.cp(envFile, path.join(uploadPath, '.env'));
@@ -128,6 +135,7 @@ export class ProjectService {
     } catch (err) {
       persistedProject.state = ProjectState.Failed;
       await this.projectRepository.save(persistedProject);
+
       handleServiceErrors(err);
     }
   }

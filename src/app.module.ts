@@ -9,6 +9,7 @@ import { ServerModule } from './server/server.module';
 import { MailersModule } from './mailers';
 import { DatabaseModule } from './database/database.module';
 import { DockerModule } from './docker/docker.module';
+import { PortModule } from './port/port.module';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { DockerModule } from './docker/docker.module';
     ServerModule,
     MailersModule,
     DatabaseModule,
-    DockerModule
+    DockerModule,
+    PortModule
   ],
   controllers: [AppController],
   providers: [AppService]
