@@ -100,7 +100,10 @@ export class ProjectService {
           if (!res || ports.length > 0) {
             throw new Error('This port is not available');
           }
-          await this.portService.addPort(port);
+          await this.portService.addPort({
+            port,
+            projectId: persistedProject.id
+          });
         });
 
         await Promise.all(promises);

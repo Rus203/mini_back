@@ -55,7 +55,7 @@ export class ProjectController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['sshGitPrivateKey', 'name', 'email', 'gitLink', 'port'],
+      required: ['sshGitPrivateKey', 'name', 'email', 'gitLink'],
       properties: {
         name: {
           type: 'string',
@@ -69,10 +69,6 @@ export class ProjectController {
           type: 'string',
           description:
             'Github link to the repo in SSH format (git@github.com:username/repo-name.git)'
-        },
-        port: {
-          type: 'string',
-          description: 'Port you want to launch your project on'
         },
         envFile: {
           type: 'string',

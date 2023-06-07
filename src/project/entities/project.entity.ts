@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  OneToMany
+} from 'typeorm';
+import { Port } from '../../port/port.entity';
 
 export enum ProjectState {
   Undeployed = 'undeployed',
@@ -67,4 +74,7 @@ export class Project {
   })
   @Column()
   gitPrivateKeyPath: string;
+
+  @OneToMany(() => Port, (port) => port.project)
+  ports: Port[];
 }

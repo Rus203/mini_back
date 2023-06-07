@@ -6,7 +6,7 @@ import { Request } from 'express';
 const srcPath = path.join(__dirname, '..');
 
 export const storage = diskStorage({
-  destination: path.join(srcPath, 'tmp'),
+  destination: path.join(srcPath, '..', 'tmp'),
   filename: (req: Request, file: Express.Multer.File, cb) => {
     const uniqueSuffix =
       Date.now() + '-' + crypto.randomBytes(20).toString('hex');

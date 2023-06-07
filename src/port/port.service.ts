@@ -10,6 +10,7 @@ import {
   analyzeDockerComposeFile
 } from 'src/utils';
 import { join } from 'path';
+import { AddPortDto } from './dto/add-ports.dto';
 
 @Injectable()
 export class PortService implements OnModuleInit {
@@ -29,20 +30,20 @@ export class PortService implements OnModuleInit {
       const port = await this.getPorts({ port: item });
       const result = checkPortAvailability(item);
       if (port.length === 0 && result) {
-        return this.addPort(item);
+        return this.addPort({ port: item });
       }
     });
 
     await Promise.all(promises);
   }
 
-  async addPort(port: number) {
-    const ports = await this.getPorts({ port });
+  async addPort(dto: AddPortDto) {
+    const ports = await this.getPorts(dto);
     if (ports.length > 0) {
-      throw new Error('Not available port: ' + port);
+      throw new Error('Not available port: ' + dto.port);
     }
 
-    const newPort = this.projectRepository.create({ port });
+    const newPort = this.projectRepository.create(dto);
     return this.projectRepository.save(newPort);
   }
 
