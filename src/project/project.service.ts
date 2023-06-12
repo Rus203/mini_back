@@ -54,7 +54,7 @@ export class ProjectService {
 
       const { name } = createProjectDto;
       const srcPath = path.join(__dirname, '..');
-      const uploadPath = path.join(srcPath, 'projects', name);
+      const uploadPath = path.join(srcPath, '..', 'projects', name);
 
       const newProject = this.projectRepository.create({
         ...createProjectDto,

@@ -18,20 +18,12 @@ export class CronService {
     private schedulerRegistry: SchedulerRegistry
   ) {}
 
-  private async checkServerPort(
-    port: number,
-    { email, projectName }: { email: string; projectName: string }
-  ) {
-    probe(port, 'localhost').catch(async () => {
-      await this.projectMailer.sendServerBrokeDownMessage(email, projectName);
-    });
-  }
-
   private formJobName(taskDefinition: MinibackCronJob, taskPayload: string) {
     return taskDefinition + '-' + taskPayload;
   }
 
-  public addCheckProjectHealthTask({ port, email, name }: Project) {
+  public addCheckProjectHealthTask(project: Project) {
+    const { ports, email, name } = project;
     const jobName = this.formJobName(MinibackCronJob.HealthCheckProjects, name);
 
     try {
@@ -39,9 +31,23 @@ export class CronService {
       currentJob.start();
     } catch (err) {
       if (err.message && err.message.includes('No Cron Job was found')) {
-        const job = new CronJob(CronExpression.EVERY_5_MINUTES, () =>
-          this.checkServerPort(Number(port), { email, projectName: name })
-        );
+        const job = new CronJob(CronExpression.EVERY_5_MINUTES, async () => {
+          let allPortsListening = true;
+
+          for (const port of ports) {
+            try {
+              await probe(port.port, 'localhost');
+            } catch {
+              allPortsListening = false;
+              break;
+            }
+          }
+
+          if (!allPortsListening) {
+            await this.projectMailer.sendServerBrokeDownMessage(email, name);
+          }
+        });
+
         this.schedulerRegistry.addCronJob(jobName, job);
         job.start();
       } else {

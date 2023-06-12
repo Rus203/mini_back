@@ -54,12 +54,6 @@ export class Project {
   email: string;
 
   @ApiProperty({
-    type: String
-  })
-  @Column()
-  port: string;
-
-  @ApiProperty({
     enum: ProjectState
   })
   @Column({
