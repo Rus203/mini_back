@@ -118,7 +118,7 @@ export class ProjectController {
     summary: 'Run project',
     description: 'Runs project image on server'
   })
-  @Post(':project_id/run')
+  @Post('run/:project_id')
   async runDocker(@Param('project_id') projectId: string) {
     return await this.projectService.run(projectId);
   }
@@ -127,7 +127,7 @@ export class ProjectController {
     summary: 'Stop project',
     description: 'Stops project image on server'
   })
-  @Delete(':project_id/delete')
+  @Delete('delete/:project_id')
   async stopDocker(@Param('project_id') projectId: string) {
     return await this.projectService.delete(projectId);
   }
