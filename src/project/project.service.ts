@@ -37,7 +37,11 @@ export class ProjectService {
   ) {}
 
   async findAll() {
-    return await this.projectRepository.find();
+    const projects = await this.projectRepository.find();
+    return projects.map((project) => {
+      const { envFile, gitLink, uploadPath, ...rest } = project;
+      return rest;
+    });
   }
 
   async findOneById(id: string): Promise<Project> {

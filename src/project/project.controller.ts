@@ -68,7 +68,8 @@ export class ProjectController {
         gitLink: {
           type: 'string',
           description:
-            'Github link to the repo in SSH format (git@github.com:username/repo-name.git)'
+            'Github link to the repo in SSH format' +
+            '(git@github.com:username/repo-name.git)'
         },
         envFile: {
           type: 'string',
