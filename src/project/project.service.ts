@@ -43,7 +43,7 @@ export class ProjectService {
     private readonly projectRepository: Repository<Project>,
     private readonly gitProvider: GitProvider,
     private readonly dockerProvider: DockerProvider,
-    private readonly cronService: CronService,
+    // private readonly cronService: CronService,
     private readonly portService: PortService,
     private readonly fileEncryptorProvider: FileEncryptorProvider,
     private readonly socketProgressGateway: SocketProgressGateway
@@ -209,7 +209,7 @@ export class ProjectService {
       );
 
       if (result) {
-        this.cronService.addCheckProjectHealthTask(persistedProject);
+        // this.cronService.addCheckProjectHealthTask(persistedProject);
         persistedProject.state = ProjectState.Running;
         await this.projectRepository.save(persistedProject);
 
@@ -262,7 +262,7 @@ export class ProjectService {
           project.id
         );
 
-        this.cronService.stopCheckProjectHealthTask(project);
+        // this.cronService.stopCheckProjectHealthTask(project);
 
         this.socketProgressGateway.emitDeleteStatus(
           DeleteStatus.STOP_CRON_TASK,
