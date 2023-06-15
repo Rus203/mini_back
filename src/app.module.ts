@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ProjectModule } from './project/project.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -10,7 +8,6 @@ import { MailersModule } from './mailers';
 import { DatabaseModule } from './database/database.module';
 import { DockerModule } from './docker/docker.module';
 import { PortModule } from './port/port.module';
-import { SocketDeployGateway } from './socket-deploy/socket-deploy.gateway';
 import { SocketDeployModule } from './socket-deploy/socket-deploy.module';
 import { SocketProgressModule } from './socket-progress/socket-progress.module';
 import { FileEncryptorModule } from './file-encryptor/file-encryptor.module';
@@ -30,7 +27,7 @@ import { FileEncryptorModule } from './file-encryptor/file-encryptor.module';
     SocketProgressModule,
     FileEncryptorModule
   ],
-  controllers: [AppController],
-  providers: [AppService, SocketDeployGateway]
+  controllers: [],
+  providers: []
 })
 export class AppModule {}
