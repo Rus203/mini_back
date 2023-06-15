@@ -13,7 +13,7 @@ export class SocketDeployGateway {
   @WebSocketServer() server: Server;
 
   @SubscribeMessage('deploy-project')
-  async runDeploy(@MessageBody() data) {
+  runDeploy(@MessageBody() data) {
     console.log(data);
     console.log('start deploy a project');
     this.projectService
