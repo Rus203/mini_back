@@ -36,7 +36,7 @@ export class SocketDeployGateway {
       .delete(data.id)
       .then(() => {
         console.log('Project was deleted');
-        this.server.emit(`finish-deleting-project-${data.id}`);
+        this.server.emit(`finish-delete-project-${data.id}`);
       })
       .catch((error) => {
         console.log('Error was gotten: ', error);
