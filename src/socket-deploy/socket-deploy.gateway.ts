@@ -24,7 +24,7 @@ export class SocketDeployGateway {
       })
       .catch((error) => {
         console.log('An error was gotten: ', error);
-        this.server.emit('error', error.message);
+        this.server.emit(`error-${data.id}`, error.message);
       });
   }
 
@@ -40,7 +40,7 @@ export class SocketDeployGateway {
       })
       .catch((error) => {
         console.log('Error was gotten: ', error);
-        this.server.emit('error', error.message);
+        this.server.emit(`error-${data.id}`, error.message);
       });
   }
 }
