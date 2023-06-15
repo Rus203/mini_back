@@ -9,9 +9,9 @@ import {
 import { Port } from '../../port/port.entity';
 
 export enum ProjectState {
-  Undeployed = 'undeployed',
-  Running = 'running',
-  Failed = 'failed'
+  UNDEPLOYED = 'undeployed',
+  DEPLOYED = 'deployed',
+  FAILED = 'failed',
 }
 
 @Entity()
@@ -59,7 +59,7 @@ export class Project {
   @Column({
     type: 'enum',
     enum: ProjectState,
-    default: ProjectState.Undeployed
+    default: ProjectState.UNDEPLOYED
   })
   state: ProjectState;
 

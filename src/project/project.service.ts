@@ -112,18 +112,15 @@ export class ProjectService {
     const persistedProject = await this.projectRepository.findOneBy({ id });
 
     if (!persistedProject) {
-      throw new HttpException({ message: 'Project not found' }, 404);
+      throw new Error('Project not found');
     }
 
-    if (persistedProject.state !== ProjectState.Undeployed) {
-      throw new HttpException(
-        { message: 'Project has already deployed or failed' },
-        400
-      );
+    if (persistedProject.state !== ProjectState.UNDEPLOYED) {
+      throw new Error('Project has already deployed or failed');
     }
 
-    this.socketProgressGateway.emitDeleteStatus(
-      DeleteStatus.START,
+    this.socketProgressGateway.emitDeployStatus(
+      DeployStatus.START,
       persistedProject.id
     );
 
@@ -172,7 +169,7 @@ export class ProjectService {
         const res = await checkPortAvailability(port);
         const ports = await this.portService.getPorts({ port });
         if (!res || ports.length > 0) {
-          throw new ConflictException('This port is not available');
+          throw new Error('This port is not available');
         }
 
         return port;
@@ -210,7 +207,7 @@ export class ProjectService {
 
       if (result) {
         // this.cronService.addCheckProjectHealthTask(persistedProject);
-        persistedProject.state = ProjectState.Running;
+        persistedProject.state = ProjectState.DEPLOYED;
         await this.projectRepository.save(persistedProject);
 
         this.socketProgressGateway.emitDeployStatus(
@@ -219,7 +216,7 @@ export class ProjectService {
         );
       }
     } catch (err) {
-      persistedProject.state = ProjectState.Failed;
+      persistedProject.state = ProjectState.FAILED;
       await this.projectRepository.save(persistedProject);
 
       handleServiceErrors(err);
@@ -245,7 +242,7 @@ export class ProjectService {
     });
 
     if (!project) {
-      throw new HttpException({ message: 'Project not found' }, 404);
+      throw new Error('Project not found');
     }
 
     try {
@@ -254,7 +251,7 @@ export class ProjectService {
         project.id
       );
 
-      if (project.state === ProjectState.Running) {
+      if (project.state === ProjectState.DEPLOYED) {
         await this.dockerProvider.stopDocker(project.uploadPath);
 
         this.socketProgressGateway.emitDeleteStatus(
