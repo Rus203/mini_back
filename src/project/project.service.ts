@@ -43,7 +43,7 @@ export class ProjectService {
     private readonly projectRepository: Repository<Project>,
     private readonly gitProvider: GitProvider,
     private readonly dockerProvider: DockerProvider,
-    // private readonly cronService: CronService,
+    private readonly cronService: CronService,
     private readonly portService: PortService,
     private readonly fileEncryptorProvider: FileEncryptorProvider,
     private readonly socketProgressGateway: SocketProgressGateway
@@ -163,8 +163,6 @@ export class ProjectService {
         ...analyzeDockerfile(uploadPath)
       ];
 
-      console.log('ports: ', ports);
-
       const promises = ports.map(async (port) => {
         const res = await checkPortAvailability(port);
         const ports = await this.portService.getPorts({ port });
@@ -206,7 +204,7 @@ export class ProjectService {
       );
 
       if (result) {
-        // this.cronService.addCheckProjectHealthTask(persistedProject);
+        this.cronService.addCheckProjectHealthTask(persistedProject);
         persistedProject.state = ProjectState.DEPLOYED;
         await this.projectRepository.save(persistedProject);
 

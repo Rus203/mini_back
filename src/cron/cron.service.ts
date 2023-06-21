@@ -34,13 +34,17 @@ export class CronService {
         const job = new CronJob(CronExpression.EVERY_5_MINUTES, async () => {
           let allPortsListening = true;
 
-          for (const port of ports) {
-            try {
-              await probe(port.port, 'localhost');
-            } catch {
-              allPortsListening = false;
-              break;
+          try {
+            for (const port of ports) {
+              try {
+                await probe(port.port, 'localhost');
+              } catch {
+                allPortsListening = false;
+                break;
+              }
             }
+          } catch (error) {
+            console.log(error);
           }
 
           if (!allPortsListening) {
