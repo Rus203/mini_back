@@ -6,18 +6,19 @@ import {
 } from '@nestjs/websockets';
 import { ProjectService } from '../project/project.service';
 import { Server } from 'socket.io';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 @WebSocketGateway({ cors: '*' })
 export class SocketDeployGateway {
   constructor(private projectService: ProjectService) {}
   @WebSocketServer() server: Server;
 
   @SubscribeMessage('deploy-project')
-  async runDeploy(@MessageBody() data) {
+  runDeploy(@MessageBody() data) {
     console.log(data);
     console.log('start deploy a project');
-    this.projectService
-      .run(data.id)
+    this.projectService.run(data.id)
       .then(() => {
         console.log('finish deploy project');
         this.server.emit(`finish-deploy-project-${data.id}`);
