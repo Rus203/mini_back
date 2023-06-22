@@ -18,7 +18,8 @@ export class SocketDeployGateway {
   runDeploy(@MessageBody() data) {
     console.log(data);
     console.log('start deploy a project');
-    this.projectService.run(data.id)
+    this.projectService
+      .run(data.id)
       .then(() => {
         console.log('finish deploy project');
         this.server.emit(`finish-deploy-project-${data.id}`);

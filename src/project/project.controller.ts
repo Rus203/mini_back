@@ -16,22 +16,29 @@ import {
   ApiTags,
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
-  ApiResponse
+  ApiResponse,
+  ApiNotFoundResponse
 } from '@nestjs/swagger';
 
 import { ProjectService } from './project.service';
 import { storage } from 'src/config';
 import { CreateProjectDto } from './dto';
-import { Project } from './entities';
+import { ProjectResponseDto } from './dto/project-response.dto';
 
 @ApiTags('project')
 @Controller('project')
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
+  @ApiInternalServerErrorResponse({ description: 'internal server error' })
   @ApiOperation({
     summary: 'Get all projects',
     description: 'Gets all existing projects'
+  })
+  @ApiResponse({
+    description: 'project list',
+    status: 200,
+    type: [ProjectResponseDto]
   })
   @Get()
   async index() {
@@ -42,6 +49,13 @@ export class ProjectController {
     summary: 'Get one project',
     description: 'Gets one project by its id'
   })
+  @ApiResponse({
+    status: 200,
+    description: 'project info',
+    type: ProjectResponseDto
+  })
+  @ApiInternalServerErrorResponse({ description: 'internal server error' })
+  @ApiNotFoundResponse({ description: 'not found a projects' })
   @Get(':project_id')
   async show(@Param('project_id') projectId: string) {
     return await this.projectService.findOneById(projectId);
@@ -73,17 +87,20 @@ export class ProjectController {
         },
         envFile: {
           type: 'string',
-          format: 'binary'
+          format: 'binary',
+          description: 'Config file for a project'
         },
         sshGitPrivateKey: {
           type: 'string',
-          format: 'binary'
+          format: 'binary',
+          description: 'SSH private key for a github account'
         }
       }
     }
   })
   @ApiResponse({
-    type: Project
+    status: 201,
+    type: ProjectResponseDto
   })
   @ApiBadRequestResponse({
     description: 'Bad request'
@@ -112,23 +129,5 @@ export class ProjectController {
       envFilePath: envFile ? envFile[0].path : null,
       gitPrivateKeyPath: sshGitPrivateKey[0].path
     });
-  }
-
-  @ApiOperation({
-    summary: 'Run project',
-    description: 'Runs project image on server'
-  })
-  @Post('run/:project_id')
-  async runDocker(@Param('project_id') projectId: string) {
-    return await this.projectService.run(projectId);
-  }
-
-  @ApiOperation({
-    summary: 'Stop project',
-    description: 'Stops project image on server'
-  })
-  @Delete('delete/:project_id')
-  async stopDocker(@Param('project_id') projectId: string) {
-    return await this.projectService.delete(projectId);
   }
 }
