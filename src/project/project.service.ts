@@ -175,13 +175,6 @@ export class ProjectService {
 
       const resolvedPorts = await Promise.all(promises);
 
-      for (let i = 0; i < resolvedPorts.length; i++) {
-        await this.portService.addPort({
-          port: resolvedPorts[0],
-          projectId: persistedProject.id
-        });
-      }
-
       if (tempEnvFile) {
         await fsPromise.cp(tempEnvFile, join(uploadPath, '.env'));
       }
@@ -212,6 +205,13 @@ export class ProjectService {
           DeployStatus.ADD_CRON_TASK,
           persistedProject.id
         );
+
+        for (let i = 0; i < resolvedPorts.length; i++) {
+          await this.portService.addPort({
+            port: resolvedPorts[i],
+            projectId: persistedProject.id
+          });
+        }
       }
     } catch (err) {
       persistedProject.state = ProjectState.FAILED;
