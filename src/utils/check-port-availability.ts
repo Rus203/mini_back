@@ -17,6 +17,21 @@ export const checkPortAvailability = (port: number): Promise<boolean> => {
         })
         .close();
     });
-    server.listen(port);
+
+    server.listen(port, '0.0.0.0', () => {
+      server.unref();
+    });
+
+    const tester = net.createConnection(port, '0.0.0.0', () => {
+      tester.end();
+      server.close();
+    });
+    tester.on('error', (err: { code: string }) => {
+      if (err.code === 'ECONNREFUSED') {
+        resolve(true);
+      } else {
+        reject(err);
+      }
+    });
   });
 };
