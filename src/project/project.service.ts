@@ -167,7 +167,7 @@ export class ProjectService {
         const res = await checkPortAvailability(port);
         const ports = await this.portService.getPorts({ port });
         if (!res || ports.length > 0) {
-          throw new Error('This port is not available');
+          throw new Error(`Port ${port} is not available`);
         }
 
         return port;

@@ -39,6 +39,7 @@ export class PortService implements OnModuleInit {
 
   async addPort(dto: AddPortDto) {
     const ports = await this.getPorts(dto);
+    console.log(ports);
     if (ports.length > 0) {
       throw new Error('Not available port: ' + dto.port);
     }
