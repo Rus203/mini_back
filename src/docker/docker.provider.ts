@@ -13,13 +13,10 @@ export class DockerProvider extends ChildProcessCommandProvider {
 
       this.checkDockerComposeInstallation()
         .then(() => {
-          const dockerComposeProcess = spawn(
-            'sudo docker-compose up --build -d',
-            {
-              cwd: projectDirectory,
-              shell: true
-            }
-          );
+          const dockerComposeProcess = spawn('docker-compose up --build -d', {
+            cwd: projectDirectory,
+            shell: true
+          });
 
           this.handleProcessErrors(dockerComposeProcess, resolve, reject);
         })
@@ -33,7 +30,7 @@ export class DockerProvider extends ChildProcessCommandProvider {
     return new Promise((resolve, reject) => {
       this.checkDockerComposeFile(projectDirectory);
 
-      const dockerComposeProcess = spawn('sudo docker-compose down --rmi all', {
+      const dockerComposeProcess = spawn('docker-compose down --rmi all', {
         cwd: projectDirectory,
         shell: true
       });
@@ -55,7 +52,7 @@ export class DockerProvider extends ChildProcessCommandProvider {
 
   private checkDockerComposeInstallation(): Promise<void> {
     return new Promise((resolve, reject) => {
-      spawn('sudo docker-compose', ['version'], {
+      spawn('docker-compose', ['version'], {
         shell: true
       }).on('exit', (code) => {
         if (code !== 0) {

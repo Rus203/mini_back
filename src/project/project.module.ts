@@ -9,15 +9,22 @@ import { Project } from './entities';
 
 import { GitModule } from 'src/git';
 import { DockerModule } from 'src/docker';
+import { PortModule } from 'src/port/port.module';
+import { FileEncryptorModule } from '../file-encryptor/file-encryptor.module';
+import { SocketProgressModule } from '../socket-progress/socket-progress.module';
 
 @Module({
   imports: [
     CronModule,
     TypeOrmModule.forFeature([Project]),
     GitModule,
-    DockerModule
+    DockerModule,
+    PortModule,
+    FileEncryptorModule,
+    SocketProgressModule
   ],
   controllers: [ProjectController],
-  providers: [ProjectService]
+  providers: [ProjectService],
+  exports: [ProjectService]
 })
 export class ProjectModule {}

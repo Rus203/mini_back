@@ -1,18 +1,34 @@
 import fsPromise from 'fs/promises';
-import path from 'path';
-
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
-
+import { existsSync, unlink } from 'fs';
+import { join } from 'path';
+import {
+  ConflictException,
+  HttpException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common';
+import { DeleteStatus, DeployStatus } from '../enums';
+import { SocketProgressGateway } from 'src/socket-progress/socket-progress.gateway';
+import { makeCopyFile } from '../utils/make-copy-file';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { Repository } from 'typeorm';
 
 import { Project, ProjectState } from './entities';
-import { cleanDir, handleServiceErrors } from 'src/utils';
+import {
+  analyzeDockerfile,
+  checkPortAvailability,
+  handleServiceErrors,
+  analyzeDockerComposeFile
+} from '../utils';
 import { CreateProjectDto } from './dto';
-import { GitProvider } from 'src/git';
-import { DockerProvider } from 'src/docker';
-import { CronService } from 'src/cron';
+import { GitProvider } from '../git';
+import { DockerProvider } from '../docker';
+import { CronService } from '../cron';
+import { PortService } from '../port/port.service';
+import { FileEncryptorProvider } from '../file-encryptor/file-encryptor.provider';
+import { normalizeProjectName } from '../utils/normalize-project-name';
+import { SocketDeployGateway } from 'src/socket-deploy/socket-deploy.gateway';
 
 interface IProjectFilesInfo {
   envFilePath: string | null;
@@ -21,21 +37,32 @@ interface IProjectFilesInfo {
 
 @Injectable()
 export class ProjectService {
+  rootDirectory = join(__dirname, '..', '..');
   constructor(
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly gitProvider: GitProvider,
     private readonly dockerProvider: DockerProvider,
-    private readonly cronService: CronService
+    private readonly cronService: CronService,
+    private readonly portService: PortService,
+    private readonly fileEncryptorProvider: FileEncryptorProvider,
+    private readonly socketProgressGateway: SocketProgressGateway
   ) {}
 
   async findAll() {
-    return await this.projectRepository.find();
+    const projects = await this.projectRepository.find();
+    return projects.map((project) => {
+      const { envFile, uploadPath, gitPrivateKeyPath, ...rest } = project;
+      return rest;
+    });
   }
 
-  async findOneById(id: string): Promise<Project> {
+  async findOneById(id: string) {
     try {
-      return await this.projectRepository.findOneByOrFail({ id });
+      const { uploadPath, gitPrivateKeyPath, envFile, ...rest } =
+        await this.projectRepository.findOneByOrFail({ id });
+
+      return rest;
     } catch (err) {
       throw new NotFoundException();
     }
@@ -43,96 +70,222 @@ export class ProjectService {
 
   async create(createProjectDto: CreateProjectDto, files: IProjectFilesInfo) {
     try {
-      const { envFilePath, gitPrivateKeyPath } = files;
+      let { gitPrivateKeyPath, envFilePath } = files;
 
-      const { name, gitLink } = createProjectDto;
-      const srcPath = path.join(__dirname, '..');
-      const uploadPath = path.join(srcPath, 'projects', name);
+      const name = normalizeProjectName(createProjectDto.name);
+
+      const uploadPath = join(this.rootDirectory, 'projects', name);
+
+      const haveToEncrypt = [gitPrivateKeyPath];
+      if (existsSync(envFilePath)) {
+        haveToEncrypt.push(envFilePath);
+      }
+
+      await this.fileEncryptorProvider.encryptFilesOnPlace(haveToEncrypt);
+
+      gitPrivateKeyPath += '.enc';
+
+      if (existsSync(envFilePath)) {
+        envFilePath += '.enc';
+      }
 
       const newProject = this.projectRepository.create({
         ...createProjectDto,
         uploadPath,
-        envFile: envFilePath
+        envFile: envFilePath,
+        gitPrivateKeyPath
       });
-      const result = await this.projectRepository.save(newProject);
+
+      const {
+        uploadPath: _uploadPath,
+        gitPrivateKeyPath: _gitPrivateKeyPath,
+        envFile,
+        ...rest
+      } = await this.projectRepository.save(newProject);
+      return rest;
+    } catch (err) {
+      handleServiceErrors(err);
+    }
+  }
+
+  async run(id: string) {
+    const persistedProject = await this.projectRepository.findOneBy({ id });
+
+    if (!persistedProject) {
+      throw new Error('Project not found');
+    }
+
+    if (persistedProject.state !== ProjectState.UNDEPLOYED) {
+      throw new Error('Project has already deployed or failed');
+    }
+
+    this.socketProgressGateway.emitDeployStatus(
+      DeployStatus.START,
+      persistedProject.id
+    );
+
+    const { gitLink, uploadPath, gitPrivateKeyPath, envFile } =
+      persistedProject;
+
+    let tempGitPrivateKey = await makeCopyFile(gitPrivateKeyPath);
+    let tempEnvFile: string;
+    const haveToEncrypt = [tempGitPrivateKey];
+
+    if (envFile) {
+      tempEnvFile = await makeCopyFile(envFile);
+      haveToEncrypt.push(tempEnvFile);
+    }
+
+    await this.fileEncryptorProvider.decryptFilesOnPlace(haveToEncrypt);
+
+    tempGitPrivateKey = tempGitPrivateKey.replace(/.enc$/, '');
+
+    if (tempEnvFile) {
+      tempEnvFile = tempEnvFile.replace(/.enc$/, '');
+    }
+
+    this.socketProgressGateway.emitDeployStatus(
+      DeployStatus.PREPARING,
+      persistedProject.id
+    );
+
+    try {
+      let result: boolean;
 
       await this.gitProvider.clone({
         gitLink,
         uploadPath,
-        sshGitPrivateKeyPath: gitPrivateKeyPath
+        sshGitPrivateKeyPath: tempGitPrivateKey
       });
 
-      if (envFilePath) {
-        await fsPromise.cp(envFilePath, path.join(uploadPath, '.env'));
+      const ports = [
+        ...analyzeDockerComposeFile(uploadPath),
+        ...analyzeDockerfile(uploadPath)
+      ];
+
+      const promises = ports.map(async (port) => {
+        const res = await checkPortAvailability(port);
+        const ports = await this.portService.getPorts({ port });
+        if (!res || ports.length > 0) {
+          throw new Error(`Port ${port} is not available`);
+        }
+
+        return port;
+      });
+
+      const resolvedPorts = await Promise.all(promises);
+
+      if (tempEnvFile) {
+        await fsPromise.cp(tempEnvFile, join(uploadPath, '.env'));
       }
 
-      await cleanDir(path.join(srcPath, 'tmp'));
+      this.socketProgressGateway.emitDeployStatus(
+        DeployStatus.CHECKING,
+        persistedProject.id
+      );
 
-      await this.run(result);
+      try {
+        await this.dockerProvider.runDocker(persistedProject.uploadPath);
+        result = true;
+      } catch (err) {
+        handleServiceErrors(err);
+      }
 
-      return result;
+      this.socketProgressGateway.emitDeployStatus(
+        DeployStatus.RUN_DOCKER,
+        persistedProject.id
+      );
+
+      if (result) {
+        this.cronService.addCheckProjectHealthTask(persistedProject);
+        persistedProject.state = ProjectState.DEPLOYED;
+        await this.projectRepository.save(persistedProject);
+
+        this.socketProgressGateway.emitDeployStatus(
+          DeployStatus.ADD_CRON_TASK,
+          persistedProject.id
+        );
+
+        for (let i = 0; i < resolvedPorts.length; i++) {
+          await this.portService.addPort({
+            port: resolvedPorts[i],
+            projectId: persistedProject.id
+          });
+        }
+      }
     } catch (err) {
+      persistedProject.state = ProjectState.FAILED;
+      await this.projectRepository.save(persistedProject);
+
       handleServiceErrors(err);
+    } finally {
+      if (existsSync(tempEnvFile)) {
+        fsPromise.unlink(tempEnvFile);
+      }
+
+      if (existsSync(tempGitPrivateKey)) {
+        fsPromise.unlink(tempGitPrivateKey);
+      }
+
+      this.socketProgressGateway.emitDeployStatus(
+        DeployStatus.FINISH,
+        persistedProject.id
+      );
     }
   }
 
-  async run(project: string | Project): Promise<boolean> {
-    try {
-      let persistedProject: Project;
+  async delete(projectId: string) {
+    const project = await this.projectRepository.findOneBy({
+      id: projectId
+    });
 
-      if (typeof project === 'string') {
-        persistedProject = await this.projectRepository.findOneBy({
-          id: project
-        });
-      } else {
-        persistedProject = project;
-      }
-
-      if (persistedProject) {
-        let result: boolean;
-
-        try {
-          await this.dockerProvider.runDocker(persistedProject.uploadPath);
-          result = true;
-        } catch (err) {
-          persistedProject.state = ProjectState.FAILED;
-          handleServiceErrors(err);
-        }
-
-        if (result) {
-          this.cronService.addCheckProjectHealthTask(persistedProject);
-          persistedProject.state = ProjectState.DEPLOYED;
-          await this.projectRepository.save(persistedProject);
-        }
-
-        return true;
-      }
-
-      throw new HttpException({ message: 'Project not found' }, 404);
-    } catch (err) {
-      handleServiceErrors(err);
+    if (!project) {
+      throw new Error('Project not found');
     }
-  }
 
-  async delete(projectId: string): Promise<boolean> {
     try {
-      const project = await this.projectRepository.findOneBy({
-        id: projectId
-      });
-      if (project) {
-        const result = await this.dockerProvider.stopDocker(project.uploadPath);
+      this.socketProgressGateway.emitDeleteStatus(
+        DeleteStatus.START,
+        project.id
+      );
 
-        if (result) {
-          this.cronService.stopCheckProjectHealthTask(project);
-          await this.projectRepository.delete({ id: projectId })
-        }
+      if (project.state === ProjectState.DEPLOYED) {
+        await this.dockerProvider.stopDocker(project.uploadPath);
 
-        return true;
+        this.socketProgressGateway.emitDeleteStatus(
+          DeleteStatus.STOP_DOCKER,
+          project.id
+        );
+
+        // this.cronService.stopCheckProjectHealthTask(project);
+
+        this.socketProgressGateway.emitDeleteStatus(
+          DeleteStatus.STOP_CRON_TASK,
+          project.id
+        );
       }
 
-      throw new HttpException({ message: 'Project not found' }, 404);
+      await this.projectRepository.delete({ id: projectId });
+
+      this.socketProgressGateway.emitDeleteStatus(
+        DeleteStatus.REMOVE_TRASH,
+        project.id
+      );
     } catch (err) {
       handleServiceErrors(err);
+    } finally {
+      if (existsSync(project.envFile)) {
+        fsPromise.unlink(project.envFile);
+      }
+
+      if (existsSync(project.gitPrivateKeyPath)) {
+        fsPromise.unlink(project.gitPrivateKeyPath);
+      }
+
+      this.socketProgressGateway.emitDeleteStatus(
+        DeleteStatus.FINISH,
+        project.id
+      );
     }
   }
 }

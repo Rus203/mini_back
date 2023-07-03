@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ProjectModule } from './project/project.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -9,6 +7,10 @@ import { ServerModule } from './server/server.module';
 import { MailersModule } from './mailers';
 import { DatabaseModule } from './database/database.module';
 import { DockerModule } from './docker/docker.module';
+import { PortModule } from './port/port.module';
+import { SocketDeployModule } from './socket-deploy/socket-deploy.module';
+import { SocketProgressModule } from './socket-progress/socket-progress.module';
+import { FileEncryptorModule } from './file-encryptor/file-encryptor.module';
 
 @Module({
   imports: [
@@ -19,9 +21,13 @@ import { DockerModule } from './docker/docker.module';
     ServerModule,
     MailersModule,
     DatabaseModule,
-    DockerModule
+    DockerModule,
+    PortModule,
+    SocketDeployModule,
+    SocketProgressModule,
+    FileEncryptorModule
   ],
-  controllers: [AppController],
-  providers: [AppService]
+  controllers: [],
+  providers: []
 })
 export class AppModule {}

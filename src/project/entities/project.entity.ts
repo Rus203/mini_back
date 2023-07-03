@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  OneToMany
+} from 'typeorm';
+import { Port } from '../../port/port.entity';
 
 export enum ProjectState {
   UNDEPLOYED = 'undeployed',
@@ -19,7 +26,7 @@ export class Project {
     type: String
   })
   @Index()
-  @Column({ unique: true })
+  @Column()
   name: string;
 
   @ApiProperty({
@@ -47,12 +54,6 @@ export class Project {
   email: string;
 
   @ApiProperty({
-    type: String
-  })
-  @Column()
-  port: string;
-
-  @ApiProperty({
     enum: ProjectState
   })
   @Column({
@@ -61,4 +62,13 @@ export class Project {
     default: ProjectState.UNDEPLOYED
   })
   state: ProjectState;
+
+  @ApiProperty({
+    type: String
+  })
+  @Column()
+  gitPrivateKeyPath: string;
+
+  @OneToMany(() => Port, (port) => port.project)
+  ports: Port[];
 }

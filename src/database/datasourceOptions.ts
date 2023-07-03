@@ -1,5 +1,6 @@
 import { DataSourceOptions } from 'typeorm';
 import { Project } from '../project/entities';
+import { Port } from 'src/port/port.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -8,7 +9,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.POSTGRES_USER!,
   password: process.env.POSTGRES_PASSWORD!,
   database: process.env.POSTGRES_DB!,
-  entities: [Project],
+  entities: [Project, Port],
   synchronize: true
 };
 

@@ -1,11 +1,5 @@
 import { Project } from '../entities/project.entity';
-import {
-  IsEmail,
-  IsNumberString,
-  IsString,
-  MaxLength,
-  MinLength
-} from 'class-validator';
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateProjectDto implements Partial<Project> {
   @IsString()
@@ -18,7 +12,4 @@ export class CreateProjectDto implements Partial<Project> {
 
   @IsString()
   gitLink: string;
-
-  @IsNumberString()
-  port: string;
 }

@@ -1,6 +1,9 @@
 # compiled output
 /dist
 /node_modules
+/tmp
+/temp
+/projects
 
 # Logs
 logs
